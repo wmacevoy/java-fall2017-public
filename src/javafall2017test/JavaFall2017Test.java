@@ -10,12 +10,11 @@ package javafall2017test;
  * @author wmacevoy
  */
 public class JavaFall2017Test {
-
     /**
      * @param args the command line arguments
      */
     public static void main(String[] args) {
-        System.out.println("hello");
+        System.out.println("goodbye!");
         // TODO code application logic here
     }
     
