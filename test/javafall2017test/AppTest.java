@@ -5,6 +5,7 @@
  */
 package javafall2017test;
 
+import java.util.Scanner;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -60,5 +61,52 @@ public class AppTest {
         App app = new App(args);
         
         assertArrayEquals(args,app.args);
+    }
+
+    /**
+     * Test of readInput method, of class App.
+     */
+    @Test
+    public void testReadInput_Scanner() {
+        System.out.println("readInput");
+        Scanner in = new Scanner("2 10 7\n" +
+                                 "4 5 5 5 5 5 9");
+        
+        App app = new App(new String[] {});
+        app.readInput(in);
+        
+        assertEquals(2,app.h);
+        assertEquals(10,app.w);
+        assertEquals(7,app.n);
+        assertArrayEquals(new int[] {4,5,5,5,5,5,9}, app.x);
+    }
+
+    /**
+     * Test of solveProblem method, of class App.
+     */
+    @Test
+    public void testSolveProblem1() {
+        
+        System.out.println("readInput");
+        Scanner in = new Scanner("2 10 7\n" +
+                                 "5 5 5 5 5 5 5");
+        
+        App app = new App(new String[] {});
+        app.readInput(in);
+        app.solveProblem();
+        assertEquals(true, app.completed);
+    }
+    
+    @Test
+    public void testSolveProblem2() {
+        
+        System.out.println("readInput");
+        Scanner in = new Scanner("2 10 7\n" +
+                                 "5 5 5 3 5 2 2");
+        
+        App app = new App(new String[] {});
+        app.readInput(in);
+        app.solveProblem();
+        assertEquals(false, app.completed);
     }
 }
