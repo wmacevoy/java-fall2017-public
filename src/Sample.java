@@ -14,6 +14,10 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -40,55 +44,131 @@ public class Sample {
         return connection;
     }
 
-    void reset() {
-        try {
-            Connection connection = getConnection();
-            Statement statement = connection.createStatement();
-            statement.setQueryTimeout(30);  // set timeout to 30 sec.
+    private HashMap< String, PreparedStatement> preparedStatementCache = null;
+    public static final int SQL_STATEMENT_TIMEOUT_SECONDS = 10;
 
-            statement.executeUpdate("drop table if exists person");
-            statement.executeUpdate("create table person (id integer primary key, name string)");
-        } catch (SQLException ex) {
-            Logger.getLogger(Sample.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
-
-    long insertPerson(String name) {
-        long id = -1;
-        try {
-            Connection connection = getConnection();
-            String sql = "insert into person (name) values (?)";
-
-            PreparedStatement ps
-                    = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-            ps.setString(1, name);
-            ps.execute();
-            ResultSet rs = ps.getGeneratedKeys();
-            if (rs != null && rs.next()) {
-                id = rs.getLong(1);
+    public PreparedStatement getPreparedStatement(String sql) {
+        if (preparedStatementCache == null) {
+            synchronized (this) {
+                if (preparedStatementCache == null) {
+                    preparedStatementCache = new HashMap< String, PreparedStatement>();
+                }
             }
-        } catch (SQLException ex) {
-            Logger.getLogger(Sample.class.getName()).log(Level.SEVERE, null, ex);
         }
 
-        return id;
+        PreparedStatement preparedStatement = preparedStatementCache.get(sql);
+        if (preparedStatement == null) {
+            synchronized (this) {
+                preparedStatement = preparedStatementCache.get(sql);
+                if (preparedStatement == null) {
+                    try {
+                        Connection connection = getConnection();
+                        int keyMode = sql.startsWith("insert")
+                                ? Statement.RETURN_GENERATED_KEYS : Statement.NO_GENERATED_KEYS;
+
+                        preparedStatement
+                                = connection.prepareStatement(sql, keyMode);
+                        preparedStatement.setQueryTimeout(SQL_STATEMENT_TIMEOUT_SECONDS);
+                        preparedStatementCache.put(sql, preparedStatement);
+                    } catch (SQLException ex) {
+                        Logger.getLogger(Sample.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+
+                }
+            }
+        }
+        return preparedStatement;
     }
 
-    String getPerson(long id) {
+    ResultSet sql(String sql, Object... objects) {
         try {
-            Connection connection = getConnection();
-            String sql = "select name from person where id=?";
-            PreparedStatement ps
-                    = connection.prepareStatement(sql, Statement.NO_GENERATED_KEYS);
-            ps.setLong(1, id);
-            ResultSet rs = ps.executeQuery();
-            if (rs != null && rs.next()) {
-                return rs.getString("name");
+            PreparedStatement preparedStatement = getPreparedStatement(sql);
+            int index = 1;
+            for (Object object : objects) {
+                if (object instanceof Boolean) {
+                    preparedStatement.setBoolean(index, (Boolean) object);
+                } else if (object instanceof Integer) {
+                    preparedStatement.setInt(index, (Integer) object);
+                } else if (object instanceof Long) {
+                    preparedStatement.setLong(index, (Long) object);
+                } else if (object instanceof String) {
+                    preparedStatement.setString(index, (String) object);
+                } else {
+                    throw new IllegalStateException("can't set type " + object.getClass().getName());
+                }
+                ++index;
+            }
+            if (sql.startsWith("insert")) {
+                preparedStatement.execute();
+                ResultSet resultSet = preparedStatement.getGeneratedKeys();
+                return resultSet;
+            } else {
+                ResultSet resultSet = preparedStatement.executeQuery();
+                return resultSet;
             }
         } catch (SQLException ex) {
             Logger.getLogger(Sample.class.getName()).log(Level.SEVERE, null, ex);
         }
         return null;
+    }
+    
+    Long longResult(ResultSet resultSet) {
+        try {
+            if (resultSet != null && resultSet.next()) return resultSet.getLong(1);
+        } catch (SQLException ex) {
+            Logger.getLogger(Sample.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return null;
+    }
+    
+    String stringResult(ResultSet resultSet) {
+        try {
+            if (resultSet != null && resultSet.next()) return resultSet.getString(1);
+        } catch (SQLException ex) {
+            Logger.getLogger(Sample.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return null;
+    }
+
+    private Statement statement = null;
+
+    public Statement getStatement() {
+        if (statement == null) {
+            synchronized (this) {
+                if (statement == null) {
+                    try {
+                        Connection connection = getConnection();
+                        statement = connection.createStatement();
+                        statement.setQueryTimeout(SQL_STATEMENT_TIMEOUT_SECONDS);
+                    } catch (SQLException ex) {
+                        Logger.getLogger(Sample.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                }
+            }
+        }
+        return statement;
+    }
+
+    void sql(String command) {
+        try {
+            Statement statement = getStatement();
+            statement.executeUpdate(command);
+        } catch (SQLException ex) {
+            Logger.getLogger(Sample.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+
+    void reset() {
+        sql("drop table if exists person");
+        sql("create table person (id integer primary key, name string)");
+    }
+    
+    long insertPerson(String name) {
+        return longResult(sql("insert into person (name) values (?)",name));
+    }
+
+    String getPerson(long id) {
+        return stringResult(sql("select name from person where id=?",id));
     }
 
     void run() {
