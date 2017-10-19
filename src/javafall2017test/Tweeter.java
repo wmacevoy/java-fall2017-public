@@ -59,6 +59,13 @@ public class Tweeter {
         synchronized(this) {
             setUser(user);
             setMessage(message);
+            tweetInForeground();
+        }
+    }
+    public void tweetInBackground(String user, String message) {
+        synchronized(this) {
+            setUser(user);
+            setMessage(message);
             tweetInBackground();
         }
     }
