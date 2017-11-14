@@ -5,30 +5,50 @@
  */
 package javafall2017test;
 
+import java.util.ArrayList;
+
 /**
  *
  * @author wmacevoy
  */
 public class Tweeter {
-
+    ArrayList<String> log = new ArrayList<String>();
+        
+        public int getLogSize() { return log.size(); }
+        
+        public String getLogEntry(int index) {
+            if (0 <= index && index < log.size()) return log.get(index);
+            return null;
+        }
+    public String getMessage() {
+        return message;
+    }
+    
     private class Job implements Runnable {
 
         private String user;
         private String message;
+        
+        
 
         Job() {
             this.user = Tweeter.this.user;
             this.message = Tweeter.this.message;
         }
+        
+        void log(String message) {
+            log.add(message);
+            System.out.println(message);
+        }
 
         void tweet() {
             try {
-                System.out.println("connecting to twitter...");
+                log("connecting to twitter...");
                 Thread.sleep(1000);
-                System.out.println("transferring message...");
+                log("transferring message...");
                 Thread.sleep(1000);
-                System.out.println("done!");
-                System.out.println("tweeted: " + message + " for " + user);
+                log("done!");
+                log("tweeted: " + message + " for " + user);
             } catch (InterruptedException ex) {
             }
         }
@@ -54,10 +74,11 @@ public class Tweeter {
         new Job().tweet();
     }
 
-    public void tweetInBackground() {
+    public Thread tweetInBackground() {
         Job job = new Job();
         Thread thread = new Thread(job);
         thread.start();
+        return thread;
     }
 
     public void tweetInForeground(String user, String message) {
@@ -68,11 +89,11 @@ public class Tweeter {
         }
     }
 
-    public void tweetInBackground(String user, String message) {
+    public Thread tweetInBackground(String user, String message) {
         synchronized (this) {
             setUser(user);
             setMessage(message);
-            tweetInBackground();
+            return tweetInBackground();
         }
     }
 }
